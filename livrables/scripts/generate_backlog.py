@@ -397,8 +397,8 @@ def build():
     if "Planning sprints" in wb.sheetnames:
         del wb["Planning sprints"]
     p = wb.create_sheet("Planning sprints")
-    p.append(["Sprint", "Thème", "User stories", "Charge totale (j)", "Livrable / Objectif"])
-    style_header_row(p, 1, 5)
+    p.append(["Sprint", "Thème", "User stories", "Charge totale (j)", "Durée (semaines)", "Jours ouvrés dispo", "Livrable / Objectif"])
+    style_header_row(p, 1, 7)
     themes = {
         1: ("Sprint 1 — Socle utilisateur & ingestion", "Compte utilisateur opérationnel + pipeline d'ingestion des photos"),
         2: ("Sprint 2 — Gestion garde-robe & 1er modèle IA", "Garde-robe gérable + détection vêtements (PoC vision)"),
@@ -407,20 +407,32 @@ def build():
         5: ("Sprint 5 — Personnalisation & purge", "Personnalisation visuelle + purge automatique"),
         6: ("Sprint 6 — Sources externes & polissage", "Intégration sources externes + recettes finales"),
     }
+    # Sprint 3 étendu à 3 semaines : 60 j de charge ne tiennent pas sur 10 j ouvrés (2 sem.)
+    # sans mobiliser 6 personnes à temps plein en simultané sur le sprint le plus risqué du projet.
+    SPRINT_DUREE_SEMAINES = {1: 2, 2: 2, 3: 3, 4: 2, 5: 2, 6: 2}
     for sp_num in sorted(themes.keys()):
         us_in_sprint = [u for u in US if u["sprint"] == sp_num]
         charge = sum(u["charge"] for u in us_in_sprint)
         ids = ", ".join(u["id"] for u in us_in_sprint)
-        p.append([f"Sprint {sp_num}", themes[sp_num][0], ids, charge, themes[sp_num][1]])
+        duree = SPRINT_DUREE_SEMAINES[sp_num]
+        jours_dispo = duree * 5
+        p.append([f"Sprint {sp_num}", themes[sp_num][0], ids, charge, duree, jours_dispo, themes[sp_num][1]])
     p.column_dimensions["A"].width = 10
     p.column_dimensions["B"].width = 42
     p.column_dimensions["C"].width = 28
     p.column_dimensions["D"].width = 16
-    p.column_dimensions["E"].width = 50
+    p.column_dimensions["E"].width = 14
+    p.column_dimensions["F"].width = 16
+    p.column_dimensions["G"].width = 50
     for row in p.iter_rows(min_row=2, values_only=False):
         for cell in row:
             cell.alignment = LEFT_WRAP
             cell.border = BORDER
+
+    total_semaines = sum(SPRINT_DUREE_SEMAINES.values())
+    tr = p.max_row + 2
+    p.cell(row=tr, column=1, value="Durée totale du projet").font = Font(bold=True)
+    p.cell(row=tr, column=2, value=f"{total_semaines} semaines (5 sprints × 2 sem. + Sprint 3 × 3 sem.)").alignment = LEFT_WRAP
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)

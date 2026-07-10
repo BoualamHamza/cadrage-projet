@@ -21,11 +21,19 @@ OUT = ROOT / "livrables" / "Registre_traitement_CNIL.ods"
 
 
 def set_text(cell, text):
-    """Remplace le contenu d'une cellule par du texte (multi-lignes géré)."""
+    """Remplace le contenu d'une cellule par du texte (multi-lignes géré).
+
+    Sans l'attribut office:value-type="string", LibreOffice affiche quand
+    même le texte (il l'infère du <text:p>), mais Excel considère la
+    cellule comme vide à l'ouverture d'un .ods généré par un autre outil
+    que lui : il faut donc le poser explicitement, comme le fait le
+    gabarit CNIL d'origine sur ses propres cellules pré-remplies.
+    """
     for child in list(cell.childNodes):
         cell.removeChild(child)
     if not text:
         return
+    cell.setAttribute("valuetype", "string")
     lines = str(text).split("\n")
     p = P()
     for i, line in enumerate(lines):

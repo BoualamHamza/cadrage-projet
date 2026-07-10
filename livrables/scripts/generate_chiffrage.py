@@ -57,9 +57,9 @@ def build():
     h.column_dimensions["C"].width = 40
 
     section(h, 1, "Hypothèses générales", ncols=3)
-    h.append(["Durée d'un sprint (semaines)", 2, "Démarche SCRUM, 2 semaines par sprint"])
+    h.append(["Durée d'un sprint (semaines)", "2 (Sprint 3 : 3)", "Sprint 3 étendu à 3 semaines : 60 j de charge ne tiennent pas sur 10 j ouvrés (2 sem.) sans mobiliser 6 personnes à temps plein en simultané"])
     h.append(["Nombre de sprints", 6, "Couvre l'ensemble du backlog priorisé"])
-    h.append(["Durée totale du projet (mois)", 3, "≈ 12 semaines de développement"])
+    h.append(["Durée totale du projet (semaines)", 13, "5 sprints × 2 semaines + Sprint 3 × 3 semaines"])
     h.append(["Taux de maintenance annuel", 0.15, "15% du coût de développement initial (règle PO)"])
     h.append(["Horizon d'analyse rentabilité (années)", 5, "Standard projet IA"])
 
@@ -83,10 +83,10 @@ def build():
     section(h, h.max_row + 1, "Coûts Azure", ncols=3)
     azure_init = [
         ("Stockage Blob (jeux d'entraînement, images)", 1200, "Phase entraînement, ~3 mois"),
-        ("Azure Machine Learning (compute GPU entraînement)", 8000, "≈ 200h GPU NC6 sur la phase"),
+        ("Azure Machine Learning (compute GPU entraînement, NC6s v3)", 8000, "≈ 2000h GPU cumulées sur 3 mois (usage quasi continu : itérations + hyperparameter tuning). NC6s v3 ≈ 3,8 €/h — le SKU 'NC6' d'origine est retiré du catalogue Azure"),
         ("Azure Custom Vision / Cognitive Services (annotation)", 1500, "Pour les itérations rapides"),
         ("Environnements de dev / pré-prod", 2000, "App Service + DB managée"),
-        ("Sécurité & monitoring (Defender, Sentinel)", 1300, "Sur la phase projet"),
+        ("Sécurité & monitoring (Microsoft Defender for Cloud)", 1300, "Sur la phase projet, sans SIEM Sentinel (coût prohibitif pour ce périmètre, cf. onglet prod)"),
     ]
     for label, val, desc in azure_init:
         h.append([label, val, desc])
@@ -95,17 +95,21 @@ def build():
 
     h.append([])
     section(h, h.max_row + 1, "Coûts Azure annuels (production)", ncols=3)
+    # Postes "variables" : évoluent avec le nombre d'utilisateurs actifs (hébergement, inférence, stockage)
+    # Postes "fixes" : n'évoluent pas avec l'usage (base de données, sécurité) — approximation conservatrice
     azure_prod = [
-        ("Hébergement API recommandation (App Service + AKS)", 12000, "Auto-scaling, charge moyenne"),
-        ("Inférence ML (Azure ML Endpoint)", 14000, "≈ 1M requêtes/mois"),
-        ("Stockage Blob production (photos utilisateurs)", 6000, "Chiffré, redondance ZRS"),
-        ("Base de données managée (Azure SQL / Cosmos DB)", 5000, "Compte utilisateur + préférences"),
-        ("Sécurité, sauvegarde, monitoring", 3000, "Defender, alerting, backups"),
+        ("Hébergement API recommandation (Azure App Service, auto-scaling)", 12000, "Variable — charge moyenne à 50k utilisateurs actifs (An 1)"),
+        ("Inférence ML (Azure ML Endpoint, CPU + cache embeddings, scale-to-zero)", 14000, "Variable — ≈ 1M requêtes/mois à 50k utilisateurs actifs (An 1). Suppose une inférence CPU (embeddings pré-calculés) ; si un modèle GPU temps réel s'avère nécessaire, ce poste serait à revoir nettement à la hausse (un seul GPU NC6s v3 24/7 coûte à lui seul ≈ 31 000€/an)"),
+        ("Stockage Blob production (photos utilisateurs)", 6000, "Variable — chiffré, redondance ZRS, à 50k utilisateurs actifs (An 1)"),
+        ("Base de données managée (Azure SQL / Cosmos DB)", 5000, "Fixe — compte utilisateur + préférences"),
+        ("Sécurité, sauvegarde, monitoring (Defender + Azure Monitor)", 2000, "Fixe — sans SIEM Sentinel : à 5,59 $/Go analysé, Sentinel dépasserait ce budget avec quelques dizaines de Go/mois ingérés"),
     ]
+    N_AZURE_VARIABLE = 3  # les 3 premiers postes ci-dessus sont variables, les 2 derniers sont fixes
     for label, val, desc in azure_prod:
         h.append([label, val, desc])
-    h.cell(row=h.max_row + 1, column=1, value="Total Azure annuel (€)").font = Font(bold=True)
+    h.cell(row=h.max_row + 1, column=1, value="Total Azure annuel (€, base An 1 à 50k utilisateurs)").font = Font(bold=True)
     h.cell(row=h.max_row, column=2, value=sum(a[1] for a in azure_prod)).font = Font(bold=True)
+    h.append(["Note : les postes variables sont indexés sur √(utilisateurs actifs / 50 000) d'une année sur l'autre", "", "Hypothèse d'économies d'échelle — évite une croissance linéaire irréaliste des coûts cloud ; détail par année dans l'onglet Rentabilité"])
 
     h.append([])
     section(h, h.max_row + 1, "Hypothèses gains marketing", ncols=3)
@@ -115,7 +119,9 @@ def build():
         ("Nb utilisateurs actifs an 3", 280000, "Croissance maintenue"),
         ("Nb utilisateurs actifs an 4", 380000, "Plafonnement"),
         ("Nb utilisateurs actifs an 5", 450000, "Maturité"),
-        ("Panier moyen induit / utilisateur / an (€)", 25, "Upsell estimé par le marketing"),
+        ("Taux de conversion recommandation → achat", 0.08, "Part des utilisateurs actifs générant réellement un panier additionnel via la reco (aligné avec le KPI cible ≥5%, cf. présentation COMEX) — un utilisateur actif n'est pas un acheteur"),
+        ("Panier additionnel moyen / utilisateur convertissant / an (€)", 25, "Upsell estimé par le marketing, appliqué uniquement aux utilisateurs qui convertissent"),
+        ("Marge brute retail moyenne", 0.45, "Pour convertir le CA additionnel en gain net comparable aux coûts (le panier ci-dessus est du CA, pas du profit)"),
     ]
     for label, val, desc in gains:
         h.append([label, val, desc])
@@ -174,26 +180,39 @@ def build():
     rec.column_dimensions["A"].width = 55
     rec.column_dimensions["B"].width = 18
 
-    hdr(rec, 1, ["Poste", "Montant annuel (€)"])
+    hdr(rec, 1, ["Poste", "Montant annuel (€, base An 1)", "Type"])
+    rec.column_dimensions["C"].width = 22
     maintenance = round(total_cost * 0.15, 0)
+    azure_variable_base = sum(a[1] for a in azure_prod[:N_AZURE_VARIABLE])
+    azure_fixed = sum(a[1] for a in azure_prod[N_AZURE_VARIABLE:])
     items = [
-        ("Maintenance applicative (15% du coût RH initial)", maintenance),
-        ("Infrastructure Azure production", azure_annuel_total),
-        ("Ré-entraînement modèles (compute + DS junior 20j)", 18000),
-        ("DPO / RGPD - veille et audits", 6000),
+        ("Maintenance applicative (15% du coût RH initial)", maintenance, "Fixe"),
+        ("Infrastructure Azure — hébergement/inférence/stockage", azure_variable_base, "Variable (usagers)"),
+        ("Infrastructure Azure — BDD, sécurité & monitoring", azure_fixed, "Fixe"),
+        ("Ré-entraînement modèles (compute + DS junior 20j)", 18000, "Fixe"),
+        ("DPO / RGPD - veille et audits", 6000, "Fixe"),
     ]
-    for r, (label, val) in enumerate(items, start=2):
+    for r, (label, val, typ) in enumerate(items, start=2):
         rec.cell(row=r, column=1, value=label).alignment = LEFT_WRAP
         rec.cell(row=r, column=2, value=val).alignment = CENTER
-        for col in range(1, 3):
+        rec.cell(row=r, column=3, value=typ).alignment = CENTER
+        for col in range(1, 4):
             rec.cell(row=r, column=col).border = BORDER
     tr = rec.max_row + 1
-    rec.cell(row=tr, column=1, value="TOTAL annuel (€)").font = Font(bold=True)
+    rec.cell(row=tr, column=1, value="TOTAL annuel (€, base An 1 à 50k utilisateurs)").font = Font(bold=True)
     annuel_total = sum(i[1] for i in items)
+    fixed_recurring_total = maintenance + azure_fixed + 18000 + 6000
     rec.cell(row=tr, column=2, value=annuel_total).font = Font(bold=True)
-    for col in range(1, 3):
+    for col in range(1, 4):
         rec.cell(row=tr, column=col).fill = TOTAL_FILL
         rec.cell(row=tr, column=col).border = BORDER
+    rec.cell(row=tr + 2, column=1, value=(
+        "Le poste 'Variable (usagers)' croît avec le nombre d'utilisateurs actifs (facteur "
+        "√(utilisateurs / 50 000)) — voir la progression année par année dans l'onglet Rentabilité."
+    )).alignment = LEFT_WRAP
+    rec.cell(row=tr + 2, column=1).font = Font(italic=True)
+    rec.merge_cells(start_row=tr + 2, start_column=1, end_row=tr + 2, end_column=3)
+    rec.row_dimensions[tr + 2].height = 30
 
     # ====== Onglet 4 : Rentabilité ======
     r_ws = wb.create_sheet("Rentabilité")
@@ -204,11 +223,21 @@ def build():
     hdr(r_ws, 1, ["Poste (€)", "Année 0", "Année 1", "Année 2", "Année 3", "Année 4", "Année 5"])
 
     users = [50000, 150000, 280000, 380000, 450000]
+    taux_conversion = 0.08
     panier_an = 25
-    gains_annuels = [u * panier_an for u in users]
+    marge = 0.45
+    # Gain net = utilisateurs actifs x taux de conversion x panier additionnel x marge brute
+    # (et non "utilisateurs actifs x panier", qui supposerait que 100% des actifs achètent)
+    gains_annuels = [round(u * taux_conversion * panier_an * marge, 0) for u in users]
 
-    # Ligne coûts
-    couts_par_annee = [grand_total] + [annuel_total] * 5
+    # Coûts : le socle fixe reste constant, la part variable (hébergement/inférence/stockage)
+    # est indexée sur √(utilisateurs / 50 000) pour refléter la croissance de l'usage sans
+    # supposer une croissance linéaire irréaliste des coûts cloud (économies d'échelle).
+    users_ref = users[0]
+    couts_par_annee = [grand_total] + [
+        round(fixed_recurring_total + azure_variable_base * (u / users_ref) ** 0.5, 0)
+        for u in users
+    ]
     r_ws.append(["Coûts (initial / annuels)"] + couts_par_annee)
     r_ws.append(["Coûts cumulés"] + [None] * 6)
     r_ws.append(["Gains annuels"] + [0] + gains_annuels)
@@ -261,12 +290,20 @@ def build():
     # Commentaire de lecture
     r_ws["A28"] = "Lecture : le projet devient rentable l'année où le 'Solde cumulé' devient positif."
     r_ws["A28"].font = Font(italic=True)
+    r_ws["A29"] = (
+        f"Gains = utilisateurs actifs × taux de conversion ({taux_conversion:.0%}) × panier additionnel "
+        f"({panier_an}€) × marge brute ({marge:.0%}) — pas 100% des utilisateurs actifs, et en gain net, pas en CA brut."
+    )
+    r_ws["A29"].font = Font(italic=True)
+    r_ws["A30"] = "Coûts annuels = socle fixe + coûts Azure variables indexés sur √(utilisateurs actifs / 50 000)."
+    r_ws["A30"].font = Font(italic=True)
 
     # Sauvegarde
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
     print(f"Saved {OUT}")
-    print(f"Coût initial: {grand_total} €, annuel: {annuel_total} €")
+    print(f"Coût initial: {grand_total} €, annuel An 1: {annuel_total} €")
+    print(f"Coûts par année (0-5): {couts_par_annee}")
     print(f"Gains an1-5: {gains_annuels}")
 
 

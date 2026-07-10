@@ -2,7 +2,7 @@
 
 **Présentation au COMEX — Fashion-Insta**
 *Auteur : IA Product Manager — Équipe Produit (VP : Alicia)*
-*Durée : 20 minutes + Q&A*
+*Durée : 25 minutes + Q&A*
 
 ---
 
@@ -10,8 +10,8 @@
 
 - **Quoi** : application mobile IA permettant à l'utilisateur de recevoir des recommandations vestimentaires à partir de photos de sa garde-robe et de ses préférences, **et d'acheter sans quitter l'application**.
 - **Pourquoi** : booster les ventes e-commerce, différencier Fashion-Insta face à un concurrent qui prépare la même offre, créer une nouvelle interaction client à forte valeur.
-- **Combien** : **~141 k€ d'investissement initial**, **~83 k€ de coûts annuels récurrents**, **rentabilité dès l'année 1** sur la base des projections marketing.
-- **Quand** : MVP livrable en **6 sprints (~3 mois)** en méthode SCRUM, présentation au store dès le sprint 6.
+- **Combien** : **~141 k€ d'investissement initial**, **~82 k€ de coûts annuels récurrents en An 1** (jusqu'à ~146 k€ en An 5, indexés sur la croissance des utilisateurs), **rentabilité atteinte en année 4** sur la base des projections marketing (utilisateurs × taux de conversion × marge).
+- **Quand** : MVP livrable en **6 sprints (~13 semaines, ~3 mois)** en méthode SCRUM, présentation au store dès le sprint 6.
 - **Risques majeurs** : protection des données image (RGPD), biais du modèle IA, dépendance au sous-traitant data science, pression concurrentielle. Tous **maîtrisés par un plan d'action documenté**.
 - **Demande au COMEX** : **GO** pour engager le projet.
 
@@ -35,13 +35,17 @@
 
 **Gains attendus (estimations marketing)**
 
-| Année | Utilisateurs actifs | Panier additionnel / user / an | Gains annuels |
-|---|---|---|---|
-| An 1 | 50 000 | 25 € | 1,25 M€ |
-| An 2 | 150 000 | 25 € | 3,75 M€ |
-| An 3 | 280 000 | 25 € | 7,00 M€ |
-| An 4 | 380 000 | 25 € | 9,50 M€ |
-| An 5 | 450 000 | 25 € | 11,25 M€ |
+Le gain n'est pas "utilisateurs actifs × panier" — un utilisateur actif (qui ouvre l'appli) n'est pas un acheteur. Le calcul applique un **taux de conversion** (part des actifs qui achètent réellement via la recommandation) et une **marge brute** (pour raisonner en gain net, comparable aux coûts, et non en chiffre d'affaires brut) :
+
+> Gain net = utilisateurs actifs × taux de conversion (8 %, aligné sur le KPI cible ≥5 %) × panier additionnel (25 €) × marge brute retail (45 %)
+
+| Année | Utilisateurs actifs | Gain net annuel |
+|---|---|---|
+| An 1 | 50 000 | 45 k€ |
+| An 2 | 150 000 | 135 k€ |
+| An 3 | 280 000 | 252 k€ |
+| An 4 | 380 000 | 342 k€ |
+| An 5 | 450 000 | 405 k€ |
 
 **KPI de succès (évaluation)**
 
@@ -86,37 +90,74 @@
 | Coût RH initial (équipe sur la phase projet, dont tunnel d'achat) | ~127 k€ |
 | Coût Azure initial (entraînement + dev) | ~14 k€ |
 | **Total investissement one-shot** | **~141 k€** |
-| Coûts annuels récurrents (maintenance 15 %, Azure prod, ré-entraînement, DPO) | **~83 k€/an** |
+| Coûts annuels récurrents (maintenance 15 %, Azure prod, ré-entraînement, DPO) | **~82 k€/an en An 1 → ~146 k€/an en An 5** |
+
+> Les coûts Azure de production (hébergement, inférence, stockage) sont indexés sur la croissance des utilisateurs actifs (facteur √(utilisateurs/50k)) — ils ne restent pas plats alors que la base d'utilisateurs croît x9 entre l'An 1 et l'An 5. Le poste sécurité/monitoring n'inclut plus de SIEM Sentinel (coût disproportionné pour ce périmètre : quelques dizaines de Go/mois ingérés suffiraient à dépasser le budget dédié) ; seul Microsoft Defender for Cloud est conservé.
 
 > Détail complet dans le fichier `Chiffrage_Couts_Rentabilite.xlsx`.
 
 ---
 
-## Slide 5 — Rentabilité
+## Slide 5 — Zoom : d'où viennent les coûts récurrents (82 k€ → 146 k€) ?
+
+**Composition détaillée (base An 1, à 50 000 utilisateurs actifs)**
+
+| Poste | Montant An 1 | Type | D'où ça vient |
+|---|---|---|---|
+| Maintenance applicative | 19 k€ | Fixe | 15 % du coût RH initial (127 k€) — bugs, correctifs, évolutions mineures |
+| Hébergement (Azure App Service) | 12 k€ | Variable | API de recommandation, auto-scaling |
+| Inférence ML (Azure ML Endpoint) | 14 k€ | Variable | Calcul des recommandations, ~1M requêtes/mois (CPU) |
+| Stockage Blob (photos utilisateurs) | 6 k€ | Variable | Photos garde-robe, chiffrées, redondance ZRS |
+| Base de données managée | 5 k€ | Fixe | Comptes utilisateurs + préférences |
+| Sécurité & monitoring | 2 k€ | Fixe | Microsoft Defender for Cloud |
+| Ré-entraînement des modèles IA | 18 k€ | Fixe | Compute + 20 j Data Scientist junior, pour intégrer nouvelles données/tendances |
+| DPO / RGPD | 6 k€ | Fixe | Veille réglementaire + audits annuels |
+| **TOTAL An 1** | **82 k€** | | |
+
+**Pourquoi ça monte à 146 k€ en An 5 ?**
+
+Seuls 3 postes sont "Variable" (hébergement + inférence + stockage = 32 k€ sur les 82 k€) : ils augmentent logiquement avec le succès de l'app — plus d'utilisateurs, plus de recommandations calculées, plus de photos stockées. Les 5 autres postes (50 k€) sont fixes, indépendants du nombre d'utilisateurs.
+
+| | An 1 | An 2 | An 3 | An 4 | An 5 |
+|---|---|---|---|---|---|
+| Utilisateurs actifs | 50 k | 150 k | 280 k | 380 k | 450 k |
+| Coûts fixes | 50 k€ | 50 k€ | 50 k€ | 50 k€ | 50 k€ |
+| Coûts Azure variables | 32 k€ | 56 k€ | 76 k€ | 88 k€ | 96 k€ |
+| **Total récurrent** | **82 k€** | **106 k€** | **126 k€** | **138 k€** | **146 k€** |
+
+> La part variable ne suit pas une croissance linéaire (x9 utilisateurs entre An 1 et An 5) mais une progression en racine carrée — hypothèse d'économies d'échelle standard sur le cloud (mutualisation des ressources, cache, tarifs dégressifs par palier). Sans cette hypothèse, une croissance strictement proportionnelle porterait ce seul poste à ~288 k€ en An 5, ce qui serait surestimé.
+
+> Cette hausse doit se lire **en miroir des gains**, qui croissent eux aussi avec les utilisateurs (45 k€ → 405 k€, cf. slide suivante) : l'augmentation des coûts récurrents accompagne la croissance du service, elle ne la subit pas — c'est le signe que le produit fonctionne.
+
+> Détail chiffré : `Chiffrage_Couts_Rentabilite.xlsx`, onglets *Coûts récurrents* et *Rentabilité*.
+
+---
+
+## Slide 6 — Rentabilité
 
 **Coûts vs gains cumulés sur 5 ans**
 
 | € | An 0 | An 1 | An 2 | An 3 | An 4 | An 5 |
 |---|---|---|---|---|---|---|
-| Coûts cumulés | 141 k | 224 k | 307 k | 391 k | 474 k | 557 k |
-| Gains cumulés | 0 | 1 250 k | 5 000 k | 12 000 k | 21 500 k | 32 750 k |
-| **Solde cumulé** | **-141 k** | **+1 026 k** | **+4 693 k** | **+11 609 k** | **+21 026 k** | **+32 193 k** |
+| Coûts cumulés | 141 k | 223 k | 329 k | 455 k | 593 k | 739 k |
+| Gains cumulés | 0 | 45 k | 180 k | 432 k | 774 k | 1 179 k |
+| **Solde cumulé** | **-141 k** | **-178 k** | **-149 k** | **-23 k** | **+181 k** | **+440 k** |
 
-→ **Rentabilité atteinte dès l'année 1** (cf. graphique dans `Chiffrage_Couts_Rentabilite.xlsx`, onglet *Rentabilité*).
+→ **Rentabilité atteinte en année 4** (cf. graphique dans `Chiffrage_Couts_Rentabilite.xlsx`, onglet *Rentabilité*).
 
-> Note : ces gains sont des hypothèses fournies par le marketing. La rentabilité reste positive même avec une division par 3 de l'hypothèse.
+> Note : ces gains restent des hypothèses marketing (nombre d'utilisateurs actifs, taux de conversion 8 %, panier additionnel 25 €, marge 45 %). Le calcul applique désormais un taux de conversion et une marge — il ne suppose plus que 100 % des utilisateurs actifs achètent, ce qui rend le point de rentabilité (An 4) plus tardif mais plus crédible que l'estimation précédente.
 
 ---
 
-## Slide 6 — Méthode agile SCRUM (1/2)
+## Slide 7 — Méthode agile SCRUM (1/2)
 
 - **Pourquoi SCRUM** : projet IA = incertitude technique + cible mouvante → besoin de boucles de feedback courtes.
-- **Sprints** : 2 semaines, livrable potentiellement déployable à chaque fin de sprint.
-- **MVP livré au sprint 3** : recommandation IA (garde-robe + préférences) **jusqu'à l'achat** (panier, livraison, paiement) → on mesure directement la conversion, pas seulement l'intérêt.
+- **Sprints** : 2 semaines (**3 semaines pour le Sprint 3**), livrable potentiellement déployable à chaque fin de sprint.
+- **MVP livré au sprint 3** : recommandation IA (garde-robe + préférences) **jusqu'à l'achat** (panier, livraison, paiement) → on mesure directement la conversion, pas seulement l'intérêt. Ce sprint porte 60 j de charge (2 moteurs IA + tunnel d'achat complet) : sur 10 j ouvrés (2 semaines), cela demanderait 6 personnes à temps plein en simultané — il est donc étendu à 3 semaines (15 j ouvrés) pour rester réaliste.
 
 ---
 
-## Slide 7 — Méthode agile SCRUM (2/2) — cérémonies et suivi
+## Slide 8 — Méthode agile SCRUM (2/2) — cérémonies et suivi
 
 | Cérémonie | Fréquence | Objet |
 |---|---|---|
@@ -131,23 +172,24 @@
 
 ---
 
-## Slide 8 — Planning des sprints et contenu
+## Slide 9 — Planning des sprints et contenu
 
-| Sprint | Thème | US clés | Charge (j) | Livrable |
-|---|---|---|---|---|
-| Sprint 1 | Socle utilisateur & ingestion | US01, US02 | 20 | Compte + capture photo |
-| Sprint 2 | Garde-robe & 1er modèle IA | US03, US04, US08 | 43 | Détection vêtements (PoC) |
-| Sprint 3 | **MVP IA + tunnel d'achat** | US05, US09, US11, US16, US17 | 60 | **MVP recommandation → panier → paiement** |
-| Sprint 4 | RGPD & feedback | US06, US12, US13, US14 | 43 | Conformité RGPD |
-| Sprint 5 | Personnalisation & purge | US07, US15 | 16 | Personnalisation + purge auto |
-| Sprint 6 | Sources externes & polissage | US10 | 10 | Sources d'inspiration |
-| **Total** | | | **192 j** | |
+| Sprint | Thème | US clés | Charge (j) | Durée | Livrable |
+|---|---|---|---|---|---|
+| Sprint 1 | Socle utilisateur & ingestion | US01, US02 | 20 | 2 sem. | Compte + capture photo |
+| Sprint 2 | Garde-robe & 1er modèle IA | US03, US04, US08 | 43 | 2 sem. | Détection vêtements (PoC) |
+| Sprint 3 | **MVP IA + tunnel d'achat** | US05, US09, US11, US16, US17 | 60 | **3 sem.** | **MVP recommandation → panier → paiement** |
+| Sprint 4 | RGPD & feedback | US06, US12, US13, US14 | 43 | 2 sem. | Conformité RGPD |
+| Sprint 5 | Personnalisation & purge | US07, US15 | 16 | 2 sem. | Personnalisation + purge auto |
+| Sprint 6 | Sources externes & polissage | US10 | 10 | 2 sem. | Sources d'inspiration |
+| **Total** | | | **192 j** | **13 sem.** | |
 
+> Sprint 3 étendu à 3 semaines (15 j ouvrés) : à 2 semaines, ses 60 j de charge auraient demandé 6 personnes à temps plein en simultané sur le sprint le plus critique (2 moteurs IA + tunnel d'achat), sans marge pour les imprévus.
 > Détails dans `Backlog_Fashion_Insta.xlsx`, onglet *Planning sprints*.
 
 ---
 
-## Slide 9 — Enjeux légaux : RGPD
+## Slide 10 — Enjeux légaux : RGPD
 
 **Données traitées = données personnelles sensibles (images)**
 
@@ -163,7 +205,7 @@
 
 ---
 
-## Slide 10 — Enjeux éthiques : biais et collecte
+## Slide 11 — Enjeux éthiques : biais et collecte
 
 | Biais / enjeu | Mitigation |
 |---|---|
@@ -178,7 +220,7 @@
 
 ---
 
-## Slide 11 — Plan d'action de mitigation des risques
+## Slide 12 — Plan d'action de mitigation des risques
 
 > Risques priorisés via le **spectre 7D** (Données, Délais, Dépendances, Dimensionnement, Décisions, Déontologie, Déploiement). Détail dans `Analyse_des_risques.xlsx`.
 
@@ -194,10 +236,10 @@
 
 ---
 
-## Slide 12 — Demande au COMEX
+## Slide 13 — Demande au COMEX
 
 - **Go demandé** pour engager les 141 k€ d'investissement initial.
-- **Engagement** : MVP testable en 6 semaines, déploiement complet à 3 mois.
+- **Engagement** : MVP testable en 7 semaines (fin du Sprint 3), déploiement complet à 13 semaines (~3 mois).
 - **Garanties** : conformité RGPD validée par le DPO, KPI de succès suivis en COPIL bi-mensuel, plan de risque actif.
 - **Premier livrable de confiance** : à la fin du sprint 3, démonstration du MVP au COMEX.
 
